@@ -58,7 +58,6 @@ module HMDB
       
     end
 
-
     def puts_ontology
       @ontology.puts_ontology
     end
@@ -89,7 +88,7 @@ module HMDB
     def parse_metabolite_identification
       @accession = @xml.elements['accession'].text
       @triples << [":#{@accession}", "rdfs:label", "\"#{@xml.elements['name'].text}\""]
-      @triples << [":#{@accession}", "skos:description", "\"#{@xml.elements['description'].text}\""]
+      @triples << [":#{@accession}", "skos:description", "\"\"\"#{@xml.elements['description'].text}\"\"\"@en"]
       @xml.elements['synonyms'].each_element do |synonym|
         @triples << [":#{@accession}", "skos:altLabel", "\"#{synonym.text}\"@en"]
       end
@@ -211,7 +210,6 @@ file_path = ARGV.shift
 #p file_path
 m = HMDB::Metabolites.new(file_path)
 m.parse_metabolites
-
 m.puts_ontology
 
 
