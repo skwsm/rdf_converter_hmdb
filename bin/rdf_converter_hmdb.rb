@@ -113,7 +113,7 @@ module HMDB
       @xml.elements['//taxonomy'].each_element do |elm|
         case elm.name
         when 'direct_parent'
-          @triples << [":#{@accession}", "a", "chemont:C#{@chemont_label2id[elm.text]}"]
+          @triples << [":#{@accession}", "a", "chemont:#{@chemont_label2id[elm.text]}"]
         when 'description'
         when 'alternative_parents'
         when 'substituents'
