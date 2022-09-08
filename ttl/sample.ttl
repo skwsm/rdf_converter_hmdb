@@ -11,6 +11,7 @@
 @prefix up: <http://purl.uniprot.org/uniprot/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix pubmed: <http://rdf.ncbi.nlm.nih.gov/pubmed/> .
+@prefix chemont: <http://classyfire.wishartlab.com/tax_nodes/> .
 
 :HMDB0000001 dct:identifier "HMDB0000001" .
 :HMDB0000001 ont:version "5.0" .
@@ -39,7 +40,7 @@
 :HMDB0000001 skos:altLabel "N1-Methyl-L-histidine"@en .
 :HMDB0000001 skos:altLabel "1-Methylhistidine dihydrochloride"@en .
 :HMDB0000001 skos:altLabel "1-Methylhistidine"@en .
-:HMDB0000001 a "Histidine and derivatives" .
+:HMDB0000001 a chemont:CC0004311 .
 :HMDB0000001 ont:concentration [
 ont:biospecimen "Blood" ;
 ont:concentration_value "" ;
@@ -507,7 +508,7 @@ dct:references pubmed:23269817 ;
 :HMDB0000002 skos:altLabel "3-Aminopropylamine"@en .
 :HMDB0000002 skos:altLabel "a,W-Propanediamine"@en .
 :HMDB0000002 skos:altLabel "1,3-Diaminopropane"@en .
-:HMDB0000002 a "Monoalkylamines" .
+:HMDB0000002 a chemont:CC0004311 .
 :HMDB0000002 ont:concentration [
 ont:biospecimen "Blood" ;
 ont:concentration_value "" ;
