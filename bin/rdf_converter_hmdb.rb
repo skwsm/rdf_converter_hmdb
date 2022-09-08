@@ -19,6 +19,7 @@ module HMDB
      "sio: <http://semanticscience.org/resource/>",
      "up: <http://purl.uniprot.org/uniprot/>",
      "xsd: <http://www.w3.org/2001/XMLSchema#>",
+     "pubmed: <http://rdf.ncbi.nlm.nih.gov/pubmed/>",
     ].each {|uri| print "@prefix #{uri} .\n"}
     print "\n"
   end
@@ -35,27 +36,27 @@ module HMDB
 
   class Metabolites
 
-    def initialize(file_path)
-      File.open(file_path) do |file|
+    def initialize(metabolite_file_path, chemont_file_path)
+      File.open(metabolite_file_path) do |file|
         @xml = REXML::Document.new(file)
+      end
+      File.open(chemont_file_path) do |file|
+#        @label2id = parse_chemont(file)  
       end
       @ontology = Ontology.new
     end
-    attr_accessor :xml, :ontology
+    attr_accessor :xml, :chemont, :ontology
 
     def parse_metabolites
       @xml.elements['hmdb'].each_element do |metabolite|
         m = Metabolite.new(metabolite)
         m.parse_record_information
         m.parse_metabolite_identification
-   #     m.parse_concentrations(m.get_block('//normal_concentrations'))
+        m.parse_chemical_taxonomy
+        m.parse_concentrations(m.get_block('//normal_concentrations'))
         @ontology.parse(m.get_block('//ontology'))
         m.puts_turtle
       end
-    end
-
-    def puts_metabolites(m)
-      
     end
 
     def puts_ontology
@@ -68,13 +69,13 @@ module HMDB
 
     def initialize(metabolite)
       @xml = metabolite
-      @accession = ""
+      @accession = @xml.elements['accession'].text
       @triples = []
     end
     attr_accessor :xml, :accession, :triples
 
     def parse_record_information
-      @accession = @xml.elements['accession'].text
+#      @accession = @xml.elements['accession'].text
       @triples << [":#{@accession}", "dct:identifier", "\"#{@accession}\""]
       @triples << [":#{@accession}", "ont:version", "\"#{@xml.elements['version'].text}\""]
       @triples << [":#{@accession}", "ont:status", "\"#{@xml.elements['status'].text}\""]
@@ -86,7 +87,7 @@ module HMDB
     end
 
     def parse_metabolite_identification
-      @accession = @xml.elements['accession'].text
+#      @accession = @xml.elements['accession'].text
       @triples << [":#{@accession}", "rdfs:label", "\"#{@xml.elements['name'].text}\""]
       @triples << [":#{@accession}", "skos:description", "\"\"\"#{@xml.elements['description'].text}\"\"\"@en"]
       @xml.elements['synonyms'].each_element do |synonym|
@@ -94,24 +95,46 @@ module HMDB
       end
     end
 
+    def parse_chemical_taxonomy
+      @accession = @xml.elements['accession'].text
+      @xml.elements['taxonomy'].each_element do |elm|
+        case elm.name
+        when 'direct_parent'
+          @triples << [":#{@accession}", "a", "\"#{elm.text}\""]
+        when 'description'
+        when 'alternative_parents'
+        when 'substituents'
+        else
+        end
+      end
+    end
+
     def parse_concentrations(block)
       block.each_element do |concentration|
+        @triples << [":#{@accession}", "ont:concentration", "["]
         concentration.each_element do |elm|
           case elm.name
           when 'biospecimen'
-            p elm.text
+            @triples << ["ont:biospecimen", "\"#{elm.text}\""]
           when 'concentration_value'
-            p elm.text unless elm.text
+            @triples << ["ont:concentration_value", "\"#{elm.text}\""]
           when 'concentration_units'
-            p elm.text unless elm.text
+            @triples << ["ont:concentration_units", "\"#{elm.text}\""]
+          when 'subject_condition'
+            @triples << ["ont:subject_condition", "\"#{elm.text}\""]
           when 'subject_age'
-            p elm.text
+            @triples << ["ont:subject_age", "\"#{elm.text}\""]
           when 'subject_sex'
-            p elm.text
+            @triples << ["ont:subject_sex", "\"#{elm.text}\""]
           when 'references'
-            elm.each_element{|ref| p ref.elements['pubmed_id'].text unless ref.elements['pubmed_id'] == nil}
+            elm.each_element{|ref| 
+              if ref.elements['pubmed_id'] != nil
+                @triples << ["dct:references", "pubmed:#{ref.elements['pubmed_id'].text}"]
+              end
+            }
           end
         end
+        @triples << ["] ."]
       end
     end
 
@@ -121,7 +144,20 @@ module HMDB
 
     def puts_turtle
       @triples.each do |triple|
-        print "#{triple.join(" ")} .\n"
+        case triple.size
+        when 3
+          if triple[2] == "["
+            print "#{triple.join(" ")}\n"
+          else
+            print "#{triple.join(" ")} .\n"
+          end
+        when 2
+          print "#{triple.join(" ")} ;\n"
+        when 1
+          print "#{triple.join(" ")}\n"
+        else
+          STDERR.print "Unknown patter!\n"
+        end
       end
     end
   end
@@ -179,20 +215,21 @@ module HMDB
     end
 
     def puts_ontology
+      ont = "ont"
       @data.each do |key, value|
         value.each do |k, v|
           case k
           when :term
-            print ":#{key} rdfs:label \"#{v}\"@en .\n"
+            print "#{ont}:#{key} rdfs:label \"#{v}\"@en .\n"
           when :definition
-            print ":#{key} skos:definition \"#{v}\"@en .\n"
+            print "#{ont}:#{key} skos:definition \"#{v}\"@en .\n"
           when :id
-            print ":#{key} dct:identifier \"#{v}\" .\n"
+            print "#{ont}:#{key} dct:identifier \"#{v}\" .\n"
           when :sub_class_of
-            print ":#{key} rdfs:subClassOf :#{v} .\n"
+            print "#{ont}:#{key} rdfs:subClassOf :#{v} .\n"
           when :synonyms
             v.each do |synonym|
-              print ":#{key} skos:altLabel \"#{synonym}\"@en .\n"
+              print "#{ont}:#{key} skos:altLabel \"#{synonym}\"@en .\n"
             end
           end
         end
@@ -204,13 +241,37 @@ module HMDB
 end
 
 
-HMDB.prefixes
+def help
+  print "Usage: ruby rdf_converter_hmdb.rb [options]\n"
+  print "  -i, --input   path to a HMDB metabolite XML file\n"
+  print "  -c, --chemont path to a chmeont obo file\n"
+  print "  -h, --help    show help\n"
+end
 
-file_path = ARGV.shift
-#p file_path
-m = HMDB::Metabolites.new(file_path)
-m.parse_metabolites
-m.puts_ontology
+
+params = ARGV.getopts('i:c:h', 'input:', 'chemont:', 'help')
+
+if (params["input"] && params["chemont"])
+  m = HMDB::Metabolites.new(params["input"], params["chemont"])
+  HMDB.prefixes
+  m.parse_metabolites
+  m.puts_ontology
+elsif (params["i"] && params["c"])
+  m = HMDB::Metabolites.new(params["i"], params["c"])
+  HMDB.prefixes
+  m.parse_metabolites
+  m.puts_ontology
+elsif (params["h"] || params["help"])
+  help
+  exit
+end
+
+#metabolite_file_path = ARGV.shift
+#chemont_file_path = ARGV.shift
+
+#m = HMDB::Metabolites.new(metabolite_file_path, chemont_file_path)
+#m.parse_metabolites
+#m.puts_ontology
 
 
 
